@@ -1,0 +1,28 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (vendor는 나중에 쓸 수도 있지만 보통 제외)
+vendor/
+
+# IDE specific files
+.vscode/
+.idea/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# My Binary (우리가 빌드하면 나올 파일명)
+main
+go-study
+todos.json
