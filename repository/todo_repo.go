@@ -1,66 +1,46 @@
 package repository
 
 import (
-	"encoding/json"
-	"fmt"
 	"go_study/model"
-	"os"
-	"sync"
+	"log"
+
+	"github.com/glebarez/sqlite" // Pure Go SQLite 드라이버
+	"gorm.io/gorm"
 )
 
-var (
-	todos    []model.Todo
-	nextID   = 1
-	mu       sync.Mutex
-	filename = "todos.json"
-)
+// 전역 DB 객체 (Connection Pool 관리)
+var db *gorm.DB
 
-// (파일 저장/로드 함수는 기존과 동일합니다)
-func SaveTodos() error {
-	data, err := json.MarshalIndent(todos, "", "  ")
+// DB 초기화 및 연결 (서버 켤 때 한 번만 실행)
+func InitDB() {
+	var err error
+	// 1. SQLite DB 파일 열기 (없으면 생성됨)
+	// gorm.Open은 내부적으로 Connection Pool을 생성합니다.
+	db, err = gorm.Open(sqlite.Open("todos.db"), &gorm.Config{})
 	if err != nil {
-		return err
+		log.Fatal("Failed to connect to database:", err)
 	}
-	return os.WriteFile(filename, data, 0644)
-}
 
-func LoadTodos() {
-	data, err := os.ReadFile(filename)
+	// 2. Auto Migration (핵심!) ⭐
+	// C에서는 "CREATE TABLE..." 쿼리를 직접 짜서 테이블을 만들었죠?
+	// GORM은 구조체(Todo)를 보고 알아서 테이블을 생성/수정해줍니다.
+	err = db.AutoMigrate(&model.Todo{})
 	if err != nil {
-		if os.IsNotExist(err) {
-			return
-		}
-		fmt.Println("Error reading file:", err)
-		return
+		log.Fatal("Failed to migrate database:", err)
 	}
-	if err := json.Unmarshal(data, &todos); err != nil {
-		fmt.Println("Error parsing json:", err)
-		return
-	}
-	for _, t := range todos {
-		if t.ID >= nextID {
-			nextID = t.ID + 1
-		}
-	}
-	fmt.Println("Loaded", len(todos), "todos from file.")
 }
 
-func GetAll() []model.Todo {
-	mu.Lock()
-	defer mu.Unlock()
-	return todos
-}
-
+// [INSERT] 데이터 추가
 func AddTodo(t model.Todo) (model.Todo, error) {
-	mu.Lock()
-	defer mu.Unlock()
+	// INSERT INTO todos (task, done) VALUES (...)
+	result := db.Create(&t)
+	return t, result.Error
+}
 
-	t.ID = nextID
-	nextID++
-	t.Done = false
-	todos = append(todos, t)
-
-	err := SaveTodos()
-
-	return t, err
+// [SELECT] 전체 조회
+func GetAll() []model.Todo {
+	var todos []model.Todo
+	// SELECT * FROM todos
+	db.Find(&todos)
+	return todos
 }

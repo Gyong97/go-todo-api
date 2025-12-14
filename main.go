@@ -9,8 +9,8 @@ import (
 )
 
 func main() {
-	// 1. 데이터 로드 (서버 시작 시 1회)
-	repository.LoadTodos()
+	// 1. DB 연결 및 초기화
+	repository.InitDB()
 
 	// 2. Gin 엔진 생성
 	r := gin.Default()
