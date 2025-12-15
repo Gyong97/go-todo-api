@@ -13,7 +13,8 @@ Go 언어로 작성된 RESTful API 서버입니다.
 
 ## 🏗 Architecture
 
-이 프로젝트는 **관심사의 분리(Separation of Concerns)**를 위해 3계층 구조를 따릅니다.
+이 프로젝트는 **관심사의 분리(Separation of Concerns)** 를 위해 3계층 구조를 따릅니다.
+
 
 1.  **Handler Layer (`/handler`)**: HTTP 요청/응답 처리, 파라미터 파싱, 에러 핸들링.
 2.  **Repository Layer (`/repository`)**: DB 접근 및 데이터 조작 (CRUD).
