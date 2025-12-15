@@ -1,7 +1,7 @@
 # Go Todo API Server
 
 이 프로젝트는 **Layered Architecture**를 적용하여 구축한 간단한 Todo REST API 서버입니다.
-C 언어 기반의 백엔드 개발 경험을 바탕으로, **Go 언어의 동시성 모델**(Goroutine)과 **모던 웹 프레임워크**(Gin)를 학습하고 적용하는 데 초점을 두었습니다.
+C 언어 기반의 백엔드 개발 경험을 바탕으로, **Go 언어의 동시성 모델(Goroutine)** 과 **모던 웹 프레임워크(Gin)** 를 학습하고 적용하는 데 초점을 두었습니다.
 
 ## 🛠 Tech Stack
 - **Language:** Go (Golang)
