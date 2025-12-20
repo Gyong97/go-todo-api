@@ -45,6 +45,20 @@ func (m *MockTodoRepository) Delete(id string) error {
 	return args.Error(0)
 }
 
+// [추가] 통계 조회 Mock
+func (m *MockTodoRepository) GetStats() (int64, int64, error) {
+	args := m.Called()
+	// 리턴값이 int64 2개와 error 1개임
+	return args.Get(0).(int64), args.Get(1).(int64), args.Error(2)
+}
+
+// [추가] 미완료 목록 조회 Mock
+func (m *MockTodoRepository) GetPendingTodos() ([]model.Todo, error) {
+	args := m.Called()
+	// 리턴값이 []model.Todo 슬라이스와 error 1개임
+	return args.Get(0).([]model.Todo), args.Error(1)
+}
+
 // ----------------------------------------------------------------
 // 실제 테스트 함수
 // ----------------------------------------------------------------
@@ -89,4 +103,30 @@ func TestAddTodo_Success(t *testing.T) {
 
 	// ⭐️ Mock 검증: "정말로 Save 함수가 호출되었는가?"
 	mockRepo.AssertExpectations(t)
+}
+
+func TestGenerateDailyReport_Accepted(t *testing.T) {
+	// 1. Arrange
+	mockRepo := new(MockTodoRepository)
+	// 비동기 고루틴 안에서 GetPendingTodos가 호출될 수도, 안 될 수도 있음 (Timing 이슈)
+	// 따라서 "호출된다면 빈 배열 리턴해라" 정도로 유연하게 설정하거나,
+	// 단순히 핸들러의 응답 코드만 체크할 거면 Mock 설정 없이도 202는 반환됨.
+
+	// 안전하게: 혹시 고루틴이 엄청 빨리 돌아서 호출할까봐 넣어둠
+	mockRepo.On("GetPendingTodos").Return([]model.Todo{}, nil).Maybe()
+
+	h := NewTodoHandler(mockRepo)
+
+	// 2. Act
+	gin.SetMode(gin.TestMode)
+	r := gin.Default()
+	r.POST("/reports", h.GenerateDailyReport)
+
+	req, _ := http.NewRequest("POST", "/reports", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// 3. Assert
+	// 즉시 응답이 202 Accepted 인가?
+	assert.Equal(t, http.StatusAccepted, w.Code)
 }
