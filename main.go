@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"go_study/config"
 	"go_study/handler"
 	"go_study/middleware"
@@ -12,8 +11,20 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+
+	_ "go_study/docs"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title           Go Todo API
+// @version         1.0
+// @description     이것은 Go로 만든 Todo 리스트 API 문서입니다.
+// @contact.name    Gyong97
+// @contact.email   gyong97@example.com
+// @host            localhost:8080
+// @BasePath        /
 func main() {
 	// 설정 로드
 	config.LoadConfig()
@@ -55,6 +66,9 @@ func main() {
 
 	r.POST("/reports", todoHandler.GenerateDailyReport)
 	r.GET("/dashboard", todoHandler.GetDashboard)
-	fmt.Println("Starting Server with Dependency Injection...")
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	middleware.Log.Info("Starting Server with Dependency Injection...")
 	r.Run(config.AppConfig.Server.Port)
 }

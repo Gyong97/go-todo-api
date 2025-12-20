@@ -13,6 +13,11 @@ import (
 	"gorm.io/gorm"
 )
 
+// [추가] 사용자가 입력할 데이터만 정의한 구조체 (DTO)
+type CreateTodoInput struct {
+	Task string `json:"task" binding:"required" example:"Swagger 문서 수정하기"`
+}
+
 // TodoHandler 구조체
 // 핵심: 구체적인 *SQLiteRepository가 아니라, 추상적인 인터페이스를 가집니다.
 type TodoHandler struct {
@@ -24,20 +29,50 @@ func NewTodoHandler(r repository.TodoRepository) *TodoHandler {
 	return &TodoHandler{repo: r}
 }
 
-// 이제 모든 핸들러 함수는 TodoHandler의 메소드가 됩니다.
+// GetTodos godoc
+// @Summary     할 일 목록 조회
+// @Description 저장된 모든 할 일 목록을 반환합니다.
+// @Tags        Todos
+// @Accept      json
+// @Produce     json
+// @Success     200 {object} model.WebResponse{data=[]model.Todo}
+// @Router      /todos [get]
 func (h *TodoHandler) GetTodos(c *gin.Context) {
-	// h.repo를 통해 호출 (실제 뒤에 SQLite가 있는지 Mock이 있는지 모름)
 	todos := h.repo.GetAll()
-	c.JSON(http.StatusOK, todos)
+
+	// ✨ 포장지에 싸서 전달
+	c.JSON(http.StatusOK, model.WebResponse{
+		Code:    http.StatusOK,
+		Message: "Success",
+		Data:    todos, // 원래 데이터는 여기로!
+	})
 }
 
+// AddTodo godoc
+// @Summary     할 일 추가
+// @Description 새로운 할 일을 목록에 추가합니다.
+// @Tags        Todos
+// @Accept      json
+// @Produce     json
+// @Param       todo body CreateTodoInput true "할 일 정보"
+// @Success     201 {object} model.Todo
+// @Failure     400 {object} model.WebResponse{data=nil}
+// @Router      /todos [post]
 func (h *TodoHandler) AddTodo(c *gin.Context) {
-	var newTodo model.Todo
-	if err := c.ShouldBindJSON(&newTodo); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var input CreateTodoInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response := model.WebResponse{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+			Data:    "",
+		}
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-
+	newTodo := model.Todo{
+		Task: input.Task,
+		Done: false, // 기본값
+	}
 	createdTodo, err := h.repo.Save(newTodo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save"})
@@ -46,6 +81,17 @@ func (h *TodoHandler) AddTodo(c *gin.Context) {
 	c.JSON(http.StatusCreated, createdTodo)
 }
 
+// ToggleTodoStatus godoc
+// @Summary      할 일 완료 여부 토글
+// @Description  특정 ID의 할 일 완료 상태(Done)를 반전시킵니다.
+// @Tags         Todos
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "수정할 할 일 ID"
+// @Success      200  {object}  model.Todo
+// @Failure      400  {object}  model.WebResponse  "잘못된 ID 형식"
+// @Failure      404  {object}  model.WebResponse  "ID를 찾을 수 없음"
+// @Router       /todos/{id} [patch]
 func (h *TodoHandler) ToggleTodoStatus(c *gin.Context) {
 	id := c.Param("id")
 	updatedTodo, err := h.repo.Update(id)
@@ -53,39 +99,82 @@ func (h *TodoHandler) ToggleTodoStatus(c *gin.Context) {
 	if err != nil {
 		// 1. 데이터가 없어서 난 에러인지 확인
 		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+			c.JSON(http.StatusNotFound, model.WebResponse{
+				Code:    http.StatusNotFound,
+				Message: "Data not found",
+				Data:    nil,
+			})
 			return
 		}
 		// 2. 그 외의 DB 에러 (연결 끊김, 제약조건 위반 등)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update"})
+		c.JSON(http.StatusInternalServerError, model.WebResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Fail to Update",
+			Data:    nil,
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, updatedTodo)
 }
 
+// DeleteTodo godoc
+// @Summary      할 일 삭제
+// @Description  특정 ID의 할 일을 영구적으로 삭제합니다.
+// @Tags         Todos
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int              true  "삭제할 할 일 ID"
+// @Success      200  {object}  model.WebResponse "삭제 성공"
+// @Failure      400  {object}  model.WebResponse "잘못된 ID 형식"
+// @Failure      404  {object}  model.WebResponse "ID를 찾을 수 없음"
+// @Failure      500  {object}  model.WebResponse "서버 내부 에러"
+// @Router       /todos/{id} [delete]
 func (h *TodoHandler) DeleteTodo(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.repo.Delete(id); err != nil {
 		// 에러 종류 확인: "데이터가 없어서 에러난 거야?"
 		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Todo not found"})
+			c.JSON(http.StatusNotFound, model.WebResponse{
+				Code:    http.StatusNotFound,
+				Message: "Data not found",
+				Data:    nil,
+			})
 			return
 		}
 		// 그 외의 진짜 에러 (DB 다운 등)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete"})
+		c.JSON(http.StatusInternalServerError, model.WebResponse{
+			Code:    http.StatusInternalServerError,
+			Message: "Fail to Delete",
+			Data:    nil,
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Deleted"})
+	// ✨ 데이터가 없을 때는 Data에 nil을 넣거나 생략
+	c.JSON(http.StatusOK, model.WebResponse{
+		Code:    http.StatusOK,
+		Message: "성공적으로 삭제되었습니다.",
+		Data:    nil,
+	})
 }
 
 // [POST] /reports - 무거운 리포트 생성 작업 (비동기)
+// GenerateDailyReport godoc
+// @Summary      일일 리포트 생성 요청
+// @Description  리포트 생성을 비동기로 요청합니다. (처리 결과는 이메일 발송 등)
+// @Tags         Reports
+// @Accept       json
+// @Produce      json
+// @Success      202  {object}  model.WebResponse  "요청 접수됨"
+// @Router       /reports [post]
 func (h *TodoHandler) GenerateDailyReport(c *gin.Context) {
 	// 1. 즉시 응답 (Non-blocking)
-	c.JSON(http.StatusAccepted, gin.H{
-		"message": "리포트 생성 요청이 접수되었습니다. (백그라운드 처리 중)",
+	c.JSON(http.StatusAccepted, model.WebResponse{
+		Code:    http.StatusOK,
+		Message: "리포트 생성 요청이 접수되었습니다. (백그라운드 처리 중)",
+		Data:    nil,
 	})
 
 	// 2. 백그라운드 작업 (Goroutine)
@@ -114,6 +203,14 @@ func (h *TodoHandler) GenerateDailyReport(c *gin.Context) {
 }
 
 // [GET] /dashboard - 병렬 처리 예제
+// GetDashboard godoc
+// @Summary      대시보드 데이터 조회
+// @Description  사용자 정보와 할 일 통계를 병렬로 조회하여 반환합니다.
+// @Tags         Dashboard
+// @Accept       json
+// @Produce      json
+// @Success 	 200 {object} model.WebResponse{data=[]string}
+// @Router       /dashboard [get]
 func (h *TodoHandler) GetDashboard(c *gin.Context) {
 	// 결과를 모을 채널 생성 (문자열이 지나다니는 파이프)
 	// 버퍼(2)를 주어서 송신자가 블로킹되지 않게 함
@@ -163,9 +260,9 @@ func (h *TodoHandler) GetDashboard(c *gin.Context) {
 	for msg := range results {
 		responseData = append(responseData, msg)
 	}
-
-	// 클라이언트 응답
-	c.JSON(http.StatusOK, gin.H{
-		"dashboard": responseData,
+	c.JSON(http.StatusOK, model.WebResponse{
+		Code:    http.StatusOK,
+		Message: "대시보드 데이터 조회 완료",
+		Data:    responseData,
 	})
 }
