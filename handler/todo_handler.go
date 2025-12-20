@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go_study/model"
 	"go_study/repository"
+	"go_study/utils"
 	"log"
 	"net/http"
 	"sync"
@@ -40,12 +41,7 @@ func NewTodoHandler(r repository.TodoRepository) *TodoHandler {
 func (h *TodoHandler) GetTodos(c *gin.Context) {
 	todos := h.repo.GetAll()
 
-	// ✨ 포장지에 싸서 전달
-	c.JSON(http.StatusOK, model.WebResponse{
-		Code:    http.StatusOK,
-		Message: "Success",
-		Data:    todos, // 원래 데이터는 여기로!
-	})
+	utils.SendSuccess(c, todos)
 }
 
 // AddTodo godoc
@@ -61,12 +57,7 @@ func (h *TodoHandler) GetTodos(c *gin.Context) {
 func (h *TodoHandler) AddTodo(c *gin.Context) {
 	var input CreateTodoInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		response := model.WebResponse{
-			Code:    http.StatusBadRequest,
-			Message: err.Error(),
-			Data:    "",
-		}
-		c.JSON(http.StatusBadRequest, response)
+		utils.SendError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 	newTodo := model.Todo{
@@ -75,10 +66,10 @@ func (h *TodoHandler) AddTodo(c *gin.Context) {
 	}
 	createdTodo, err := h.repo.Save(newTodo)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save"})
+		utils.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, createdTodo)
+	utils.SendCreated(c, createdTodo)
 }
 
 // ToggleTodoStatus godoc
@@ -153,11 +144,7 @@ func (h *TodoHandler) DeleteTodo(c *gin.Context) {
 	}
 
 	// ✨ 데이터가 없을 때는 Data에 nil을 넣거나 생략
-	c.JSON(http.StatusOK, model.WebResponse{
-		Code:    http.StatusOK,
-		Message: "성공적으로 삭제되었습니다.",
-		Data:    nil,
-	})
+	utils.SendSuccessWithMessage(c, "삭제 성공", nil) // Data가 없으면 nil
 }
 
 // [POST] /reports - 무거운 리포트 생성 작업 (비동기)
