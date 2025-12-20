@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go_study/handler"
+	"go_study/middleware"
 	"go_study/model"
 	"go_study/repository"
 	"log"
@@ -13,6 +14,11 @@ import (
 )
 
 func main() {
+	// 로거 초기화
+	middleware.InitLogger()
+	// 프로그램 종료 시 버퍼 비우기
+	defer middleware.Log.Sync()
+
 	// 1. DB 연결 (Infrastructure Layer)
 	db, err := gorm.Open(sqlite.Open("todos.db"), &gorm.Config{})
 	if err != nil {
@@ -29,7 +35,12 @@ func main() {
 	todoHandler := handler.NewTodoHandler(todoRepo)
 
 	// 4. Gin 라우팅 설정
-	r := gin.Default()
+	// Default()는 기본 로거를 포함하므로, 우리가 만든 걸 쓰려면 New()로 빈 깡통을 만듦
+	r := gin.New()
+
+	// 미들웨어 부착
+	r.Use(gin.Recovery())
+	r.Use(middleware.ZapLogger())
 
 	r.StaticFile("/", "./index.html")
 
