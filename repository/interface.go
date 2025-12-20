@@ -9,4 +9,9 @@ type TodoRepository interface {
 	GetAll() []model.Todo
 	Update(id string) (model.Todo, error)
 	Delete(id string) error
+
+	// 👇 [추가] 통계 정보를 가져오는 함수 (전체 개수, 완료 개수, 에러)
+	GetStats() (int64, int64, error)
+	// 👇 [추가] 완료되지 않은 할 일만 가져오는 함수
+	GetPendingTodos() ([]model.Todo, error)
 }

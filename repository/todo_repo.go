@@ -58,3 +58,30 @@ func (r *SQLiteRepository) Delete(id string) error {
 	}
 	return nil
 }
+
+// [Dashboard용] 통계 쿼리 (SELECT COUNT)
+func (r *SQLiteRepository) GetStats() (int64, int64, error) {
+	var totalCount int64
+	var doneCount int64
+
+	// 1. 전체 개수 세기 (SELECT count(*) FROM todos)
+	if err := r.db.Model(&model.Todo{}).Count(&totalCount).Error; err != nil {
+		return 0, 0, err
+	}
+
+	// 2. 완료된 개수 세기 (SELECT count(*) FROM todos WHERE done = 1)
+	if err := r.db.Model(&model.Todo{}).Where("done = ?", true).Count(&doneCount).Error; err != nil {
+		return 0, 0, err
+	}
+
+	return totalCount, doneCount, nil
+}
+
+// [Report용] 미완료 목록 조회 (SELECT * FROM todos WHERE done = 0)
+func (r *SQLiteRepository) GetPendingTodos() ([]model.Todo, error) {
+	var todos []model.Todo
+	if err := r.db.Where("done = ?", false).Find(&todos).Error; err != nil {
+		return nil, err
+	}
+	return todos, nil
+}

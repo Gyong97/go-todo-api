@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Go Todo Manager</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
+        .section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+        button { cursor: pointer; padding: 5px 10px; }
+        input { padding: 5px; width: 200px; }
+        code { background: #f4f4f4; padding: 2px 5px; }
+        #log { background: #333; color: #fff; padding: 10px; height: 200px; overflow-y: scroll; white-space: pre-wrap; }
+        .todo-item { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0; }
+        .done { text-decoration: line-through; color: #888; }
+    </style>
+</head>
+<body>
+    <h1>🐹 Go Todo API Tester</h1>
+
+    <div class="section">
+        <h3>➕ 할 일 추가 (POST /todos)</h3>
+        <input type="text" id="taskInput" placeholder="할 일을 입력하세요">
+        <button onclick="addTodo()">추가</button>
+    </div>
+
+    <div class="section">
+        <h3>📊 대시보드 & 리포트</h3>
+        <button onclick="getDashboard()">대시보드 조회 (Parallel)</button>
+        <button onclick="requestReport()">리포트 생성 요청 (Async)</button>
+    </div>
+
+    <div class="section">
+        <h3>📝 할 일 목록 (GET /todos) <button onclick="loadTodos()">새로고침</button></h3>
+        <div id="todoList"></div>
+    </div>
+
+    <div class="section">
+        <h3>🖥️ 서버 응답 로그</h3>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080';
+
+        // 로그 출력 함수
+        function log(msg) {
+            const logBox = document.getElementById('log');
+            logBox.innerText += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // 1. 목록 조회
+        async function loadTodos() {
+            try {
+                const res = await fetch(`${API_URL}/todos`);
+                const todos = await res.json();
+                const listDiv = document.getElementById('todoList');
+                listDiv.innerHTML = '';
+                
+                todos.forEach(todo => {
+                    const div = document.createElement('div');
+                    div.className = 'todo-item';
+                    div.innerHTML = `
+                        <span class="${todo.done ? 'done' : ''}" onclick="toggleTodo(${todo.id})">
+                            [${todo.id}] ${todo.task}
+                        </span>
+                        <button onclick="deleteTodo(${todo.id})">삭제</button>
+                    `;
+                    listDiv.appendChild(div);
+                });
+                log(`목록 로드 완료 (${todos.length}건)`);
+            } catch (e) { log('❌ 로드 실패: ' + e); }
+        }
+
+        // 2. 추가
+        async function addTodo() {
+            const input = document.getElementById('taskInput');
+            if (!input.value) return;
+            try {
+                const res = await fetch(`${API_URL}/todos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task: input.value })
+                });
+                const data = await res.json();
+                log(`추가 성공: ${JSON.stringify(data)}`);
+                input.value = '';
+                loadTodos(); // 목록 갱신
+            } catch (e) { log('❌ 추가 실패: ' + e); }
+        }
+
+        // 3. 완료 토글
+        async function toggleTodo(id) {
+            await fetch(`${API_URL}/todos/${id}`, { method: 'PATCH' });
+            loadTodos();
+        }
+
+        // 4. 삭제
+        async function deleteTodo(id) {
+            await fetch(`${API_URL}/todos/${id}`, { method: 'DELETE' });
+            loadTodos();
+        }
+
+        // 5. 대시보드 (병렬 처리 테스트)
+        async function getDashboard() {
+            log('⏳ 대시보드 데이터 요청 중...');
+            const start = Date.now();
+            const res = await fetch(`${API_URL}/dashboard`);
+            const data = await res.json();
+            const elapsed = Date.now() - start;
+            log(`✅ 대시보드 수신 (${elapsed}ms): \n${JSON.stringify(data, null, 2)}`);
+        }
+
+        // 6. 리포트 (비동기 처리 테스트)
+        async function requestReport() {
+            const res = await fetch(`${API_URL}/reports`, { method: 'POST' });
+            const data = await res.json();
+            log(`📨 리포트 요청 결과: ${data.message}`);
+        }
+
+        // 초기 로드
+        loadTodos();
+    </script>
+</body>
+</html>

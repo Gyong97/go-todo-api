@@ -31,12 +31,16 @@ func main() {
 	// 4. Gin 라우팅 설정
 	r := gin.Default()
 
+	r.StaticFile("/", "./index.html")
+
 	// 이제 핸들러가 메소드이므로 인스턴스(todoHandler)를 통해 호출합니다.
 	r.GET("/todos", todoHandler.GetTodos)
 	r.POST("/todos", todoHandler.AddTodo)
 	r.PATCH("/todos/:id", todoHandler.ToggleTodoStatus)
 	r.DELETE("/todos/:id", todoHandler.DeleteTodo)
 
+	r.POST("/reports", todoHandler.GenerateDailyReport)
+	r.GET("/dashboard", todoHandler.GetDashboard)
 	fmt.Println("Starting Server with Dependency Injection...")
 	r.Run(":8080")
 }
