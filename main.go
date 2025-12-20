@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"go_study/config"
 	"go_study/handler"
 	"go_study/middleware"
 	"go_study/model"
@@ -14,13 +15,15 @@ import (
 )
 
 func main() {
+	// 설정 로드
+	config.LoadConfig()
 	// 로거 초기화
 	middleware.InitLogger()
 	// 프로그램 종료 시 버퍼 비우기
 	defer middleware.Log.Sync()
 
 	// 1. DB 연결 (Infrastructure Layer)
-	db, err := gorm.Open(sqlite.Open("todos.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(config.AppConfig.Database.File), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,5 +56,5 @@ func main() {
 	r.POST("/reports", todoHandler.GenerateDailyReport)
 	r.GET("/dashboard", todoHandler.GetDashboard)
 	fmt.Println("Starting Server with Dependency Injection...")
-	r.Run(":8080")
+	r.Run(config.AppConfig.Server.Port)
 }

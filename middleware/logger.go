@@ -8,6 +8,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	"go_study/config"
 )
 
 // 전역 로거 변수 (편의상)
@@ -15,8 +17,9 @@ var Log *zap.Logger
 
 // 로거 초기화 (파일 저장 + 터미널 출력)
 func InitLogger() {
+	cfg := config.AppConfig.Log
 	// 1. 로그 파일 설정 (Lumberjack)
-	writeSyncer := getLogWriter()
+	writeSyncer := getLogWriter(cfg.Path, cfg.MaxSize, cfg.MaxBackups, cfg.MaxAge)
 
 	// 2. 로그 인코더 설정 (JSON 형식)
 	encoder := getEncoder()
@@ -42,13 +45,13 @@ func getEncoder() zapcore.Encoder {
 }
 
 // 로그 파일 저장 설정 (Log Rotation)
-func getLogWriter() zapcore.WriteSyncer {
+func getLogWriter(path string, maxSize, maxBackups, maxAge int) zapcore.WriteSyncer {
 	lumberJackLogger := &lumberjack.Logger{
-		Filename:   "./logs/server.log", // 로그 파일 위치
-		MaxSize:    10,                  // 파일 하나당 최대 크기 (MB)
-		MaxBackups: 5,                   // 백업 파일 최대 개수
-		MaxAge:     30,                  // 최대 보관 일수
-		Compress:   false,               // 백업 파일 압축 여부 (gzip)
+		Filename:   path,       // 설정 파일 값 사용
+		MaxSize:    maxSize,    // 설정 파일 값 사용
+		MaxBackups: maxBackups, // 설정 파일 값 사용
+		MaxAge:     maxAge,     // 설정 파일 값 사용
+		Compress:   false,
 	}
 	return zapcore.AddSync(lumberJackLogger)
 }

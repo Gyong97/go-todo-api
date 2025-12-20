@@ -1,0 +1,12 @@
+server:
+  port: ":8080"
+
+database:
+  file: "todos.db"
+
+log:
+  level: "info"
+  path: "./logs/server.log"
+  max_size: 10
+  max_backups: 5
+  max_age: 30
