@@ -2,73 +2,110 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Go Todo Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Todo System</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
-        .section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
-        button { cursor: pointer; padding: 5px 10px; }
-        input { padding: 5px; width: 200px; }
-        code { background: #f4f4f4; padding: 2px 5px; }
-        #log { background: #333; color: #fff; padding: 10px; height: 200px; overflow-y: scroll; white-space: pre-wrap; }
-        .todo-item { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0; }
-        .done { text-decoration: line-through; color: #888; }
+        :root { --primary: #3b82f6; --bg: #f3f4f6; --card: #ffffff; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: var(--bg); color: #1f2937; }
+        h1 { text-align: center; color: #111827; }
+        .container { display: grid; gap: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .card h3 { margin-top: 0; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; font-size: 1.1rem; }
+        
+        /* Inputs & Buttons */
+        .input-group { display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; }
+        button { cursor: pointer; padding: 10px 15px; border: none; border-radius: 6px; background-color: var(--primary); color: white; font-weight: 600; transition: 0.2s; }
+        button:hover { opacity: 0.9; }
+        button.danger { background-color: #ef4444; }
+        button.secondary { background-color: #6b7280; }
+
+        /* Todo List */
+        .todo-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #f3f4f6; }
+        .todo-item:last-child { border-bottom: none; }
+        .todo-content { cursor: pointer; flex: 1; }
+        .done { text-decoration: line-through; color: #9ca3af; }
+        
+        /* Logs */
+        #log { background: #1f2937; color: #10b981; padding: 15px; height: 200px; overflow-y: auto; border-radius: 8px; font-family: monospace; font-size: 0.9rem; white-space: pre-wrap; }
     </style>
 </head>
 <body>
-    <h1>🐹 Go Todo API Tester</h1>
+    <h1>🐹 Go Todo System</h1>
 
-    <div class="section">
-        <h3>➕ 할 일 추가 (POST /todos)</h3>
-        <input type="text" id="taskInput" placeholder="할 일을 입력하세요">
-        <button onclick="addTodo()">추가</button>
-    </div>
+    <div class="container">
+        <div class="card">
+            <h3>➕ 할 일 추가 (POST)</h3>
+            <div class="input-group">
+                <input type="text" id="taskInput" placeholder="할 일을 입력하세요 (예: Docker 공부하기)">
+                <button onclick="addTodo()">추가</button>
+            </div>
+        </div>
 
-    <div class="section">
-        <h3>📊 대시보드 & 리포트</h3>
-        <button onclick="getDashboard()">대시보드 조회 (Parallel)</button>
-        <button onclick="requestReport()">리포트 생성 요청 (Async)</button>
-    </div>
+        <div class="card">
+            <h3>⚡ 고급 기능 (Concurrency)</h3>
+            <div class="input-group">
+                <button class="secondary" onclick="getDashboard()">📊 대시보드 조회 (Parallel)</button>
+                <button class="secondary" onclick="requestReport()">📨 리포트 요청 (Async)</button>
+                <a href="/swagger/index.html" target="_blank" style="margin-left: auto;">
+                    <button style="background-color: #059669;">📘 API 문서 (Swagger)</button>
+                </a>
+            </div>
+        </div>
 
-    <div class="section">
-        <h3>📝 할 일 목록 (GET /todos) <button onclick="loadTodos()">새로고침</button></h3>
-        <div id="todoList"></div>
-    </div>
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>📝 할 일 목록</h3>
+                <button class="secondary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="loadTodos()">🔄 새로고침</button>
+            </div>
+            <div id="todoList"></div>
+        </div>
 
-    <div class="section">
-        <h3>🖥️ 서버 응답 로그</h3>
-        <div id="log"></div>
+        <div class="card">
+            <h3>🖥️ 실시간 응답 로그</h3>
+            <div id="log"></div>
+        </div>
     </div>
 
     <script>
         const API_URL = 'http://localhost:8080';
 
-        // 로그 출력 함수
         function log(msg) {
             const logBox = document.getElementById('log');
-            logBox.innerText += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+            const time = new Date().toLocaleTimeString();
+            logBox.innerHTML += `[${time}] ${msg}\n`;
             logBox.scrollTop = logBox.scrollHeight;
         }
 
-        // 1. 목록 조회
+        // 1. 목록 조회 (Standard Response 파싱)
         async function loadTodos() {
             try {
                 const res = await fetch(`${API_URL}/todos`);
-                const todos = await res.json();
+                const response = await res.json();
+                
+                // ✨ 표준 응답 처리: response.data가 실제 배열
+                const todos = response.data || []; 
+
                 const listDiv = document.getElementById('todoList');
                 listDiv.innerHTML = '';
                 
+                if (todos.length === 0) {
+                    listDiv.innerHTML = '<div style="text-align:center; color:#ccc; padding:20px;">할 일이 없습니다.</div>';
+                    return;
+                }
+
                 todos.forEach(todo => {
                     const div = document.createElement('div');
                     div.className = 'todo-item';
                     div.innerHTML = `
-                        <span class="${todo.done ? 'done' : ''}" onclick="toggleTodo(${todo.id})">
+                        <span class="todo-content ${todo.done ? 'done' : ''}" onclick="toggleTodo(${todo.id})">
                             [${todo.id}] ${todo.task}
                         </span>
-                        <button onclick="deleteTodo(${todo.id})">삭제</button>
+                        <button class="danger" onclick="deleteTodo(${todo.id})">삭제</button>
                     `;
                     listDiv.appendChild(div);
                 });
-                log(`목록 로드 완료 (${todos.length}건)`);
+                log(`✅ 목록 로드 완료: ${todos.length}건`);
             } catch (e) { log('❌ 로드 실패: ' + e); }
         }
 
@@ -82,43 +119,67 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ task: input.value })
                 });
-                const data = await res.json();
-                log(`추가 성공: ${JSON.stringify(data)}`);
-                input.value = '';
-                loadTodos(); // 목록 갱신
-            } catch (e) { log('❌ 추가 실패: ' + e); }
+                const response = await res.json(); // { code: 201, message: "Created", data: {...} }
+                
+                if (response.code === 201) {
+                    log(`✨ 추가 성공: ${response.data.task}`);
+                    input.value = '';
+                    loadTodos();
+                } else {
+                    log(`⚠️ 추가 실패: ${response.message}`);
+                }
+            } catch (e) { log('❌ 에러 발생: ' + e); }
         }
 
         // 3. 완료 토글
         async function toggleTodo(id) {
-            await fetch(`${API_URL}/todos/${id}`, { method: 'PATCH' });
-            loadTodos();
+            try {
+                const res = await fetch(`${API_URL}/todos/${id}`, { method: 'PATCH' });
+                const response = await res.json();
+                // PATCH 응답도 WebResponse인지, Raw인지에 따라 다르지만
+                // 보통 상태 코드 200이면 성공으로 간주
+                if (res.ok) {
+                   log(`🔄 상태 변경 완료 (ID: ${id})`);
+                   loadTodos();
+                } else {
+                   log(`⚠️ 변경 실패: ${response.message || 'Unknown Error'}`);
+                }
+            } catch (e) { log('❌ 에러 발생: ' + e); }
         }
 
         // 4. 삭제
         async function deleteTodo(id) {
-            await fetch(`${API_URL}/todos/${id}`, { method: 'DELETE' });
-            loadTodos();
+            if(!confirm("정말 삭제하시겠습니까?")) return;
+            try {
+                const res = await fetch(`${API_URL}/todos/${id}`, { method: 'DELETE' });
+                const response = await res.json();
+                log(`🗑️ 삭제 결과: ${response.message}`);
+                loadTodos();
+            } catch (e) { log('❌ 에러 발생: ' + e); }
         }
 
-        // 5. 대시보드 (병렬 처리 테스트)
+        // 5. 대시보드
         async function getDashboard() {
             log('⏳ 대시보드 데이터 요청 중...');
             const start = Date.now();
-            const res = await fetch(`${API_URL}/dashboard`);
-            const data = await res.json();
-            const elapsed = Date.now() - start;
-            log(`✅ 대시보드 수신 (${elapsed}ms): \n${JSON.stringify(data, null, 2)}`);
+            try {
+                const res = await fetch(`${API_URL}/dashboard`);
+                const response = await res.json();
+                const elapsed = Date.now() - start;
+                log(`📊 대시보드 수신 (${elapsed}ms): \n${JSON.stringify(response.data, null, 2)}`);
+            } catch (e) { log('❌ 대시보드 요청 실패: ' + e); }
         }
 
-        // 6. 리포트 (비동기 처리 테스트)
+        // 6. 리포트
         async function requestReport() {
-            const res = await fetch(`${API_URL}/reports`, { method: 'POST' });
-            const data = await res.json();
-            log(`📨 리포트 요청 결과: ${data.message}`);
+            try {
+                const res = await fetch(`${API_URL}/reports`, { method: 'POST' });
+                const response = await res.json();
+                log(`📨 리포트 요청: ${response.message}`);
+            } catch (e) { log('❌ 리포트 요청 실패: ' + e); }
         }
 
-        // 초기 로드
+        // 초기 실행
         loadTodos();
     </script>
 </body>
