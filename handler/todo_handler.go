@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"go_study/global"
 	"go_study/model"
 	"go_study/repository"
 	"go_study/utils"
@@ -85,6 +86,7 @@ func (h *TodoHandler) AddTodo(c *gin.Context) {
 // @Router       /todos/{id} [patch]
 func (h *TodoHandler) ToggleTodoStatus(c *gin.Context) {
 	id := c.Param("id")
+
 	updatedTodo, err := h.repo.Update(id)
 
 	if err != nil {
@@ -123,7 +125,6 @@ func (h *TodoHandler) ToggleTodoStatus(c *gin.Context) {
 // @Router       /todos/{id} [delete]
 func (h *TodoHandler) DeleteTodo(c *gin.Context) {
 	id := c.Param("id")
-
 	if err := h.repo.Delete(id); err != nil {
 		// 에러 종류 확인: "데이터가 없어서 에러난 거야?"
 		if err == gorm.ErrRecordNotFound {
@@ -252,4 +253,62 @@ func (h *TodoHandler) GetDashboard(c *gin.Context) {
 		Message: "대시보드 데이터 조회 완료",
 		Data:    responseData,
 	})
+}
+
+// HealthCheck godoc
+// @Summary      서버 생존 및 상태 확인
+// @Description  로드밸런서(L4/Nginx)가 서버 상태를 확인합니다. (Active/Standby)
+// @Tags         System
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  model.WebResponse  "Active (정상)"
+// @Failure      503  {object}  model.WebResponse  "Standby (대기중) 또는 DB 에러"
+// @Router       /health [get]
+func (h *TodoHandler) HealthCheck(c *gin.Context) {
+	// 1. Standby 모드 체크
+	if !global.IsActive() {
+		// 503 Service Unavailable + 표준 응답 포맷
+		utils.SendError(c, http.StatusServiceUnavailable, "Server is in STANDBY mode")
+		return
+	}
+
+	// 2. DB 연결 상태 체크 (GetDB() 사용!)
+	// Ping을 날려보거나, 단순히 객체 상태를 확인
+	sqlDB, err := h.repo.GetDB().DB() // GORM에서 sql.DB 객체 추출
+	if err != nil {
+		utils.SendError(c, http.StatusServiceUnavailable, "Database instance error")
+		return
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		utils.SendError(c, http.StatusServiceUnavailable, "Database connection failed")
+		return
+	}
+
+	// 3. 정상 (Active & DB OK)
+	utils.SendSuccess(c, gin.H{"status": "active", "role": "master"})
+}
+
+// PromoteToActive godoc
+// @Summary      서버 승격 (Standby -> Active)
+// @Description  관리자 명령으로 서버를 Active 상태로 전환합니다.
+// @Tags         System
+// @Success      200  {object}  model.WebResponse
+// @Router       /admin/promote [post]
+func (h *TodoHandler) PromoteToActive(c *gin.Context) {
+	global.SetActive()
+	// 표준 응답 포맷 사용
+	utils.SendSuccess(c, gin.H{"status": "promoted", "message": "Server is now ACTIVE"})
+}
+
+// PromoteToActive godoc
+// @Summary      서버 스탠바이 (Active -> Standby)
+// @Description  관리자 명령으로 서버를 Standby 상태로 전환합니다.
+// @Tags         System
+// @Success      200  {object}  model.WebResponse
+// @Router       /admin/demote [post]
+func (h *TodoHandler) DemoteToStandby(c *gin.Context) {
+	global.SetStandby()
+	// 표준 응답 포맷 사용
+	utils.SendSuccess(c, gin.H{"status": "demoted", "message": "Server is now STANBY"})
 }

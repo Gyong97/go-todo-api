@@ -6,13 +6,16 @@ import (
 	"go_study/model"
 
 	"github.com/gin-gonic/gin"
+
+	"os"
 )
 
 // 1. 성공 응답 (200 OK)
 func SendSuccess(c *gin.Context, data interface{}) {
+	hostname, _ := os.Hostname()
 	c.JSON(http.StatusOK, model.WebResponse{
 		Code:    http.StatusOK,
-		Message: "Success",
+		Message: "Success from" + hostname,
 		Data:    data,
 	})
 }

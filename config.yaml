@@ -2,7 +2,10 @@ server:
   port: ":8080"
 
 database:
-  file: "todos.db"
+  driver: "sqlite" # 또는 postgres (코드에 따라 다름)
+  # ❌ 기존: file: "todos.db"
+  # ✅ 변경: 볼륨이 연결된 /data 폴더 밑에 저장
+  file: "/data/todos.db"
 
 log:
   level: "info"

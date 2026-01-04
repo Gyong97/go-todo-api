@@ -85,3 +85,8 @@ func (r *SQLiteRepository) GetPendingTodos() ([]model.Todo, error) {
 	}
 	return todos, nil
 }
+
+// GetDB: 내부의 gorm.DB 객체를 반환 (Health Check 용도)
+func (r *SQLiteRepository) GetDB() *gorm.DB {
+	return r.db
+}

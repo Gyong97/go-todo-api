@@ -8,13 +8,16 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
+# 🚀 2. [추가] Air 설치 (Hot Reload 도구)
+RUN go install github.com/air-verse/air@latest
+
 # 소스 코드 전체 복사
 COPY . .
 
 # 빌드 실행
 # CGO_ENABLED=0: C 라이브러리 의존성 없이 순수 Go 바이너리로 빌드 (필수!)
 # GOOS=linux: 리눅스용 실행 파일 생성
-RUN CGO_ENABLED=0 GOOS=linux go build -o server main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
 # --------------------------------------------------------
 
@@ -22,13 +25,20 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o server main.go
 FROM alpine:latest
 
 # 작업 디렉토리 설정
-WORKDIR /root/
+WORKDIR /app/
 
 # Stage 1에서 빌드한 'server' 파일만 복사해옴
-COPY --from=builder /app/server .
+COPY --from=builder /app/main .
+
+# 설정 파일도 필요하다면 복사 (config.yaml)
+# (docker-compose에서 볼륨으로 넣는다면 생략 가능하지만, 안전하게 넣어둠)
+COPY config.yaml . 
+
+# 실행 권한 부여
+RUN chmod +x ./main
 
 # 컨테이너가 8080 포트를 쓴다고 명시
 EXPOSE 8080
 
 # 컨테이너 켜지면 실행할 명령어
-CMD ["./server"]
+CMD ["./main"]

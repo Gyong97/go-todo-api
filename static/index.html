@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Go Todo Service</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; padding-top: 50px; }
+        .server-info { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;}
+        .active-badge { font-weight: bold; }
+        .todo-item { cursor: pointer; transition: 0.2s; }
+        .todo-item:hover { background-color: #f1f1f1; }
+        .completed { text-decoration: line-through; color: gray; }
+    </style>
+</head>
+<body>
+    <div class="container" style="max-width: 600px;">
+        <div class="server-info text-center">
+            <h2>🚀 Go Todo Service</h2>
+            <p id="server-status">서버 상태 확인 중...</p>
+        </div>
+
+        <div class="input-group mb-3">
+            <input type="text" id="new-task" class="form-control" placeholder="할 일을 입력하세요 (예: 런닝머신 뛰기)">
+            <button class="btn btn-primary" onclick="addTodo()">추가</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">📋 할 일 목록</h5>
+                <button class="btn btn-sm btn-outline-secondary" onclick="fetchTodos()">새로고침</button>
+            </div>
+            <ul class="list-group list-group-flush" id="todo-list">
+                </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost"; // Nginx 주소
+
+        // 1. 조회 (GET)
+        async function fetchTodos() {
+            try {
+                const response = await fetch(`${API_URL}/todos`);
+                const result = await response.json();
+                
+                // 서버 이름 표시
+                const serverName = result.message || "Unknown";
+                const badgeColor = serverName.includes("server-1") ? "success" : "warning"; // 1번은 초록, 2번은 노랑
+                
+                document.getElementById('server-status').innerHTML = 
+                    `현재 응답 중인 서버: <span class="badge bg-${badgeColor} active-badge">${serverName}</span>`;
+
+                renderList(result.data);
+            } catch (error) {
+                console.error(error);
+                document.getElementById('server-status').innerText = "🔴 서버 연결 실패";
+            }
+        }
+
+        // 2. 추가 (POST)
+        async function addTodo() {
+            const input = document.getElementById('new-task');
+            const task = input.value.trim();
+            if (!task) return;
+
+            await fetch(`${API_URL}/todos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task: task, completed: false })
+            });
+            input.value = "";
+            fetchTodos(); // 목록 갱신
+        }
+
+        // 3. 완료 처리 토글 (PATCH)
+        async function toggleTodo(id, currentTask, currentStatus) {
+            await fetch(`${API_URL}/todos/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task: currentTask, completed: !currentStatus })
+            });
+            fetchTodos();
+        }
+
+        // 4. 삭제 (DELETE)
+        async function deleteTodo(event, id) {
+            event.stopPropagation(); // 클릭 이벤트 버블링 방지 (완료 처리와 겹치지 않게)
+            if(!confirm("정말 삭제하시겠습니까?")) return;
+
+            await fetch(`${API_URL}/todos/${id}`, { method: 'DELETE' });
+            fetchTodos();
+        }
+
+        // 목록 그리기 함수
+        function renderList(todos) {
+            const list = document.getElementById('todo-list');
+            list.innerHTML = "";
+            if (!todos || todos.length === 0) {
+                list.innerHTML = "<li class='list-group-item text-center text-muted'>할 일이 없습니다. 추가해보세요!</li>";
+                return;
+            }
+
+            todos.forEach(todo => {
+                const item = document.createElement('li');
+                item.className = "list-group-item todo-item d-flex justify-content-between align-items-center";
+                item.onclick = () => toggleTodo(todo.id, todo.task, todo.completed); // 클릭 시 완료 토글
+                
+                item.innerHTML = `
+                    <span class="${todo.done ? 'completed' : ''}">
+                        ${todo.done ? '✅' : '⬜'} ${todo.task}
+                    </span>
+                    <button class="btn btn-danger btn-sm" onclick="deleteTodo(event, ${todo.id})">삭제</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // 시작 시 로딩
+        fetchTodos();
+    </script>
+</body>
+</html>

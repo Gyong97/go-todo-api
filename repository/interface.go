@@ -1,6 +1,10 @@
 package repository
 
-import "go_study/model"
+import (
+	"go_study/model"
+
+	"gorm.io/gorm"
+)
 
 // TodoRepository 인터페이스 (계약서)
 // "이 기능을 구현한 녀석이라면 누구든 내 저장소가 될 수 있어!"
@@ -14,4 +18,7 @@ type TodoRepository interface {
 	GetStats() (int64, int64, error)
 	// 👇 [추가] 완료되지 않은 할 일만 가져오는 함수
 	GetPendingTodos() ([]model.Todo, error)
+
+	// 🚀 [추가] DB 연결 상태 확인용 접근자
+	GetDB() *gorm.DB
 }
